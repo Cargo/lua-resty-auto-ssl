@@ -129,7 +129,7 @@ local function get_cert_der(auto_ssl_instance, domain, ssl_options)
 
   -- Check to ensure the domain is one we allow for handling SSL.
   local allow_domain = auto_ssl_instance:get("allow_domain")
-  if not allow_domain(domain, auto_ssl_instance) then
+  if not allow_domain(domain, auto_ssl_instance, ssl_options) then
     return nil, "domain not allowed"
   end
 
