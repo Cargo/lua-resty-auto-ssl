@@ -113,19 +113,6 @@ local function get_cert_der(auto_ssl_instance, domain, ssl_options)
     }
   end
 
-  -- Check to ensure the domain is one we allow for handling SSL.
-  --
-  -- Note: We perform this after the memory lookup, so more costly
-  -- "allow_domain" lookups can be avoided for cached certs. However, we will
-  -- perform this before the storage lookup, since the storage lookup could
-  -- also be more costly (or blocking in the case of the file storage adapter).
-  -- We may want to consider caching the results of allow_domain lookups
-  -- (including negative caching or disallowed domains).
-  local allow_domain = auto_ssl_instance:get("allow_domain")
-  if not allow_domain(domain, auto_ssl_instance, ssl_options, false) then
-    return nil, "domain not allowed"
-  end
-
   -- Next, look for the certificate in permanent storage (which can be shared
   -- across servers depending on the storage).
   local storage = auto_ssl_instance.storage
@@ -138,6 +125,12 @@ local function get_cert_der(auto_ssl_instance, domain, ssl_options)
     local cert_der = convert_to_der_and_cache(domain, cert)
     cert_der["newly_issued"] = false
     return cert_der
+  end
+
+  -- Check to ensure the domain is one we allow for handling SSL.
+  local allow_domain = auto_ssl_instance:get("allow_domain")
+  if not allow_domain(domain, auto_ssl_instance, ssl_options, false) then
+    return nil, "domain not allowed"
   end
 
   -- Finally, issue a new certificate if one hasn't been found yet.
