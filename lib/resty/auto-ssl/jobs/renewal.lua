@@ -208,7 +208,7 @@ local function renew_check_cert(auto_ssl_instance, storage, domain)
   -- Throttle renewal requests based on renewals_per_hour setting.
   if last_renewal and ngx.now() - last_renewal < min_renewal_seconds then
     local to_sleep = min_renewal_seconds - (ngx.now() - last_renewal)
-    ngx.log(ngx.NOTICE, "auto-ssl: pausing renewal job for " .. to_sleep .. " seconds")
+    ngx.log(ngx.ERR, "auto-ssl: pausing renewal job for " .. to_sleep .. " seconds")
     ngx.sleep(to_sleep)
   end
   if last_renewal then
@@ -235,9 +235,12 @@ local function renew_all_domains(auto_ssl_instance)
     min_renewal_seconds = 3600 / auto_ssl_instance:get("renewals_per_hour")
     last_renewal = ngx.now()
 
+    ngx.log(ngx.ERR, "auto-ssl: starting renewal")
+    local renewal_start = ngx.now()
     for _, domain in ipairs(domains) do
       renew_check_cert(auto_ssl_instance, storage, domain)
     end
+    ngx.log(ngx.ERR, "auto-ssl: finishing renewal (took " .. (ngx.now() - renewal_start) .. " seconds)")
   end
 end
 
@@ -279,6 +282,7 @@ local function renew(premature, auto_ssl_instance)
   end
 
   local delay = math.max(0, auto_ssl_instance:get("renew_check_interval") - (ngx.now() - start))
+  ngx.log(ngx.ERR, "auto-ssl: scheduling next renewal check " .. delay .. " seconds from now")
   local timer_ok, timer_err = ngx.timer.at(delay, renew, auto_ssl_instance)
   if not timer_ok then
     if timer_err ~= "process exiting" then
@@ -289,7 +293,9 @@ local function renew(premature, auto_ssl_instance)
 end
 
 function _M.spawn(auto_ssl_instance, timer_rand)
-  local ok, err = ngx.timer.at(timer_rand * auto_ssl_instance:get("renew_check_interval"), renew, auto_ssl_instance)
+  local delay = timer_rand * auto_ssl_instance:get("renew_check_interval")
+  ngx.log(ngx.ERR, "auto-ssl: scheduling first renewal check " .. delay .. " seconds from now")
+  local ok, err = ngx.timer.at(delay, renew, auto_ssl_instance)
   if not ok then
     ngx.log(ngx.ERR, "auto-ssl: failed to create timer: ", err)
     return
