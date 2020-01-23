@@ -187,7 +187,10 @@ local function renew_check_cert(auto_ssl_instance, storage, domain)
   local _, issue_err = ssl_provider.issue_cert(auto_ssl_instance, domain)
   if issue_err then
     ngx.log(ngx.ERR, "auto-ssl: issuing renewal certificate failed: ", issue_err)
+    auto_ssl_instance:track_failure(domain)
     delete_cert_if_expired(domain, storage, cert)
+  else
+    auto_ssl_instance:track_success(domain)
   end
 
   renew_check_cert_unlock(domain, storage, local_lock, distributed_lock_value)
